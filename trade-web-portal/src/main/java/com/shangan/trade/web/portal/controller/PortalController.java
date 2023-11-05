@@ -4,6 +4,8 @@ import com.alibaba.fastjson.JSON;
 import com.shangan.trade.goods.db.model.Goods;
 import com.shangan.trade.goods.service.GoodsService;
 import com.shangan.trade.goods.service.SearchService;
+import com.shangan.trade.order.db.model.Order;
+import com.shangan.trade.order.service.OrderService;
 import com.shangan.trade.web.portal.util.CommonUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +28,9 @@ public class PortalController {
 
     @Autowired
     private SearchService searchService;
+
+    @Autowired
+    private OrderService orderService;
 
     /**
      * 跳转到主页面
@@ -57,15 +62,18 @@ public class PortalController {
 
     /**
      * 购买请求处理
+     *
      * @param userId
      * @param goodsId
      * @return
      */
     @RequestMapping("/buy/{userId}/{goodsId}")
-    public ModelAndView buy(@PathVariable long userId, @PathVariable long goodsId) {
-
-        log.info("buy userId={}, goodsId={}", userId, goodsId);
-        return null;
+    public String buy(Map<String, Object> resultMap, @PathVariable long userId, @PathVariable long goodsId) {
+        log.info("userId={}, goodsId={}", userId, goodsId);
+        Order order = orderService.createOrder(userId, goodsId);
+        resultMap.put("order", order);
+        resultMap.put("resultInfo", "下单成功");
+        return "buy_result";
     }
 
     /**
@@ -89,6 +97,33 @@ public class PortalController {
         List<Goods> goodsList = searchService.searchGoodsList(searchWords, 0, 10);
         resultMap.put("goodsList", goodsList);
         return "search";
+    }
+
+    @RequestMapping("/order/query/{orderId}")
+    public String orderQuery(Map<String, Object> resultMap, @PathVariable long orderId) {
+        Order order = orderService.queryOrder(orderId);
+        log.info("orderId={} order={}", orderId, JSON.toJSON(order));
+        String orderShowPrice = CommonUtils.changeF2Y(order.getPayPrice());
+        resultMap.put("order", order);
+        resultMap.put("orderShowPrice", orderShowPrice);
+        return "order_detail";
+    }
+
+    /**
+     * 订单支付
+     *
+     * @return
+     */
+    @RequestMapping("/order/payOrder/{orderId}")
+    public String payOrder(Map<String, Object> resultMap, @PathVariable long orderId) throws Exception {
+        try {
+            orderService.payOrder(orderId);
+            return "redirect:/order/query/" + orderId;
+        } catch (Exception e) {
+            log.error("payOrder error,errorMessage:{}", e.getMessage());
+            resultMap.put("errorInfo", e.getMessage());
+            return "error";
+        }
     }
 
 }

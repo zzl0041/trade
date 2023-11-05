@@ -1,5 +1,6 @@
 package com.shangan.trade.web.manager.controller;
 
+
 import com.shangan.trade.goods.db.model.Goods;
 import com.shangan.trade.goods.service.GoodsService;
 import lombok.extern.slf4j.Slf4j;
@@ -48,7 +49,7 @@ public class ManagerController {
      * @param keywords
      * @param category
      * @param stock
-     * @param resultMap
+     * @param /resultMap
      * @return
      */
     @RequestMapping("/addGoodsAction")
@@ -77,10 +78,9 @@ public class ManagerController {
         goods.setSaleNum(0);
         goods.setCreateTime(new Date());
         boolean result = goodsService.insertGoods(goods);
-        log.info("add goods result={}", result);
+        log.info("add goods /result={}", result);
         resultMap.put("goodsInfo", goods);
         return "add_goods";
     }
 
 }
-

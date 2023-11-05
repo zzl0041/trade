@@ -10,8 +10,8 @@ import org.springframework.context.annotation.ComponentScan;
 @SpringBootApplication
 public class TradeWebManagerApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(TradeWebManagerApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(TradeWebManagerApplication.class, args);
+    }
 
 }
