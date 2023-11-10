@@ -1,15 +1,17 @@
 package com.shangan.trade.order.service.impl;
 
 import com.alibaba.fastjson.JSON;
-import com.shangan.trade.goods.db.dao.GoodsDao;
 import com.shangan.trade.goods.db.model.Goods;
+import com.shangan.trade.goods.service.GoodsService;
 import com.shangan.trade.order.db.dao.OrderDao;
 import com.shangan.trade.order.db.model.Order;
+import com.shangan.trade.order.mq.OrderMessageSender;
 import com.shangan.trade.order.service.OrderService;
 import com.shangan.trade.order.utils.SnowflakeIdWorker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 
@@ -21,7 +23,10 @@ public class OrderServiceImpl implements OrderService {
     private OrderDao orderDao;
 
     @Autowired
-    private GoodsDao goodsDao;
+    private GoodsService goodsService;
+
+    @Autowired
+    private OrderMessageSender orderMessageSender;
 
     /**
      * datacenterId;  数据中心
@@ -32,6 +37,15 @@ public class OrderServiceImpl implements OrderService {
     private SnowflakeIdWorker snowFlake = new SnowflakeIdWorker(6, 8);
 
 
+    /**
+     * 创建订单和库存锁定在一个事务中，要么同时成功，要么同时失败
+     * 使用 @Transactional(rollbackFor = Exception.class)
+     *
+     * @param userId
+     * @param goodsId
+     * @return
+     */
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public Order createOrder(long userId, long goodsId) {
         Order order = new Order();
@@ -46,16 +60,32 @@ public class OrderServiceImpl implements OrderService {
          */
         order.setStatus(1);
         order.setCreateTime(new Date());
-        Goods goods = goodsDao.queryGoodsById(goodsId);
+
+        //1.商品查询
+        Goods goods = goodsService.queryGoodsById(goodsId);
         if (goods == null) {
             log.error("goods is null goodsId={},userId={}", goodsId, userId);
-            return null;
+            throw new RuntimeException("商品不存在");
         }
+        //2.判断库存是否充足
+        if (goods.getAvailableStock() <= 0) {
+            log.error("goods stock not enough goodsId={},userId={}", goodsId, userId);
+            throw new RuntimeException("商品库存库存不足");
+        }
+
+        //3.锁定库存
+        boolean lockResult = goodsService.lockStock(goodsId);
+        if (!lockResult) {
+            log.error("order lock stock error order={}", JSON.toJSONString(order));
+            throw new RuntimeException("订单锁定库存失败");
+        }
+
+        //4.创建订单
         order.setPayPrice(goods.getPrice());
-        boolean res = orderDao.insertOrder(order);
-        if (!res) {
+        boolean insertResult = orderDao.insertOrder(order);
+        if (!insertResult) {
             log.error("order insert error order={}", JSON.toJSONString(order));
-            return null;
+            throw new RuntimeException("订单生成失败");
         }
         return order;
     }
@@ -65,6 +95,7 @@ public class OrderServiceImpl implements OrderService {
         return orderDao.queryOrderById(orderId);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public void payOrder(long orderId) {
         log.info("支付订单  订单号：{}", orderId);
@@ -76,11 +107,11 @@ public class OrderServiceImpl implements OrderService {
          */
         if (order == null) {
             log.error("orderId={} 对应订单不存在", orderId);
-            return;
+            throw new RuntimeException("对应订单不存在");
         }
         if (order.getStatus() != 1) {
-            log.error("orderId={}  订单状态无法支付：", orderId);
-            return;
+            log.error("orderId={} 订单状态无法支付", orderId);
+            throw new RuntimeException("订单状态无法支付");
         }
         //Mock 模拟调用支付平台
         log.info("调用第三方支付平台付款.......");
@@ -92,6 +123,18 @@ public class OrderServiceImpl implements OrderService {
          * 2:支付完成
          */
         order.setStatus(2);
-        orderDao.updateOrder(order);
+        boolean updateRessult = orderDao.updateOrder(order);
+        if (!updateRessult) {
+            log.error("orderId={} 订单支付状态更新失败", orderId);
+            throw new RuntimeException("订单支付状态更新失败");
+        }
+
+        //库存扣减
+        boolean deductResult = goodsService.deductStock(order.getGoodsId());
+        if (!deductResult) {
+            log.error("orderId={} 库存扣减失败", orderId);
+            throw new RuntimeException("库存扣减失败");
+        }
     }
+
 }

@@ -68,12 +68,23 @@ public class PortalController {
      * @return
      */
     @RequestMapping("/buy/{userId}/{goodsId}")
-    public String buy(Map<String, Object> resultMap, @PathVariable long userId, @PathVariable long goodsId) {
-        log.info("userId={}, goodsId={}", userId, goodsId);
-        Order order = orderService.createOrder(userId, goodsId);
-        resultMap.put("order", order);
-        resultMap.put("resultInfo", "下单成功");
-        return "buy_result";
+    public ModelAndView buy(@PathVariable long userId, @PathVariable long goodsId) {
+        ModelAndView modelAndView = new ModelAndView();
+        try {
+            log.info("userId={}, goodsId={}", userId, goodsId);
+            Order order = orderService.createOrder(userId, goodsId);
+            //下单成功
+            modelAndView.addObject("order", order);
+            modelAndView.addObject("resultInfo", "下单成功");
+            modelAndView.setViewName("buy_result");
+            return modelAndView;
+        } catch (Exception e) {
+            //下单失败
+            log.error("buy error,errorMessage:{}", e.getMessage());
+            modelAndView.addObject("resultInfo", "下单失败,原因" + e.getMessage());
+            modelAndView.setViewName("buy_result");
+            return modelAndView;
+        }
     }
 
     /**
