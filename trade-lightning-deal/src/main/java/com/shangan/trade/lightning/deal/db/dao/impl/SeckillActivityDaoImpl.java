@@ -34,4 +34,9 @@ public class SeckillActivityDaoImpl implements SeckillActivityDao {
         return seckillActivityMapper.queryActivitysByStatus(status);
     }
 
+    @Override
+    public boolean updateAvailableStockByPrimaryKey(long id) {
+        int result = seckillActivityMapper.updateAvailableStockByPrimaryKey(id);
+        return result > 0;
+    }
 }
