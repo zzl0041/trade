@@ -79,14 +79,10 @@ public class OrderServiceImpl implements OrderService {
             log.error("order lock stock error order={}", JSON.toJSONString(order));
             throw new RuntimeException("订单锁定库存失败");
         }
-
-        //4.创建订单
         order.setPayPrice(goods.getPrice());
-        boolean insertResult = orderDao.insertOrder(order);
-        if (!insertResult) {
-            log.error("order insert error order={}", JSON.toJSONString(order));
-            throw new RuntimeException("订单生成失败");
-        }
+
+        //4.创建订单，发送创建订单消息
+        orderMessageSender.sendCreateOrderMessage(JSON.toJSONString(order));
         return order;
     }
 
@@ -130,10 +126,12 @@ public class OrderServiceImpl implements OrderService {
         }
 
         //库存扣减
-        boolean deductResult = goodsService.deductStock(order.getGoodsId());
-        if (!deductResult) {
-            log.error("orderId={} 库存扣减失败", orderId);
-            throw new RuntimeException("库存扣减失败");
+        if (order.getActivityType() == 0) {
+            //普通商品处理
+            goodsService.deductStock(order.getGoodsId());
+        } else if (order.getActivityType() == 1) {
+            //秒杀活动处理,发送支付成功消息
+            orderMessageSender.sendSeckillPaySucessMessage(JSON.toJSONString(order));
         }
     }
 
