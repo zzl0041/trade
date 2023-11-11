@@ -1,14 +1,19 @@
 package com.shangan.trade.web.manager.controller;
 
 
+import com.alibaba.fastjson.JSON;
 import com.shangan.trade.goods.db.model.Goods;
 import com.shangan.trade.goods.service.GoodsService;
+import com.shangan.trade.lightning.deal.db.model.SeckillActivity;
+import com.shangan.trade.lightning.deal.service.SeckillActivityService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
 
@@ -19,8 +24,12 @@ public class ManagerController {
     @Autowired
     private GoodsService goodsService;
 
+    @Autowired
+    private SeckillActivityService seckillActivityService;
+
     /**
      * 跳转到主页面
+     *
      * @return
      */
     @RequestMapping("/index")
@@ -31,6 +40,7 @@ public class ManagerController {
 
     /**
      * 跳转商品添加页面
+     *
      * @return
      */
     @RequestMapping("/add_goods")
@@ -40,6 +50,7 @@ public class ManagerController {
 
     /**
      * 处理商品添加
+     *
      * @param title
      * @param number
      * @param brand
@@ -81,6 +92,66 @@ public class ManagerController {
         log.info("add goods /result={}", result);
         resultMap.put("goodsInfo", goods);
         return "add_goods";
+    }
+
+    /**
+     * 跳转到秒杀活动页面
+     *
+     * @return
+     */
+    @RequestMapping("/addSkillActivity")
+    public String addSkillActivity() {
+        return "add_skill_activity";
+    }
+
+    /**
+     * 添加秒杀活动信息
+     *
+     * @param activityName
+     * @param goodsId
+     * @param startTime
+     * @param endTime
+     * @param availableStock
+     * @param seckillPrice
+     * @param oldPrice
+     * @param resultMap
+     * @return
+     */
+    @RequestMapping("/addSkillActivityAction")
+    public String addSkillActivityAction(@RequestParam("activityName") String activityName,
+                                         @RequestParam("goodsId") long goodsId,
+                                         @RequestParam("startTime") String startTime,
+                                         @RequestParam("endTime") String endTime,
+                                         @RequestParam("availableStock") int availableStock,
+                                         @RequestParam("seckillPrice") int seckillPrice,
+                                         @RequestParam("oldPrice") int oldPrice,
+                                         Map<String, Object> resultMap) {
+        try {
+            SeckillActivity seckillActivity = new SeckillActivity();
+            seckillActivity.setActivityName(activityName);
+            seckillActivity.setGoodsId(goodsId);
+
+            //获取到的startTime时间格式  2022-10-05T22:51
+            startTime = startTime.substring(0, 10) + " " + startTime.substring(11);
+            endTime = endTime.substring(0, 10) + " " + endTime.substring(11);
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm");
+            seckillActivity.setStartTime(format.parse(startTime));
+            seckillActivity.setEndTime(format.parse(endTime));
+            seckillActivity.setAvailableStock(availableStock);
+            //默认上架
+            seckillActivity.setActivityStatus(1);
+            //初始为0
+            seckillActivity.setLockStock(0);
+            seckillActivity.setSeckillPrice(seckillPrice);
+            seckillActivity.setOldPrice(oldPrice);
+            seckillActivity.setCreateTime(new Date());
+            seckillActivityService.insertSeckillActivity(seckillActivity);
+            resultMap.put("seckillActivity", seckillActivity);
+            return "add_skill_activity";
+        } catch (Exception e) {
+            log.error("addSkillActivityAction error", e);
+            return "500";
+        }
     }
 
 }
