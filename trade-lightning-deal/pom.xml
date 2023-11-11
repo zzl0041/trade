@@ -48,7 +48,13 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-
+        <!--  订单模块 -->
+        <dependency>
+            <groupId>com.shangan</groupId>
+            <artifactId>trade-order</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
         <!-- 数据库相关 -->
         <dependency>
             <groupId>mysql</groupId>
