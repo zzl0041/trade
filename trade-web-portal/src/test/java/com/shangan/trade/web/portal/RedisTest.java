@@ -41,7 +41,7 @@ public class RedisTest {
     public void setJmeterStockTest(){
         redisWorker.setValue("stock:5", 2L);
     }
-
+    //test
     @Test
     public void stockCheckTest2() {
         redisWorker.stockDeductCheck("stock:5");
