@@ -1,7 +1,6 @@
 package com.shangan.trade.web.manager.controller;
 
 
-import com.alibaba.fastjson.JSON;
 import com.shangan.trade.goods.db.model.Goods;
 import com.shangan.trade.goods.service.GoodsService;
 import com.shangan.trade.lightning.deal.db.model.SeckillActivity;
@@ -9,7 +8,6 @@ import com.shangan.trade.lightning.deal.service.SeckillActivityService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -152,6 +150,29 @@ public class ManagerController {
             log.error("addSkillActivityAction error", e);
             return "500";
         }
+    }
+
+
+    /**
+     * 跳转到推送缓存预热页面
+     *
+     * @return
+     */
+    @RequestMapping("/pushSeckillCache")
+    public String pushSeckillCache() {
+        return "push_seckill_cache";
+    }
+
+    /**
+     * 将对应的秒杀活动信息写入缓存中
+     * @param seckillId
+     * @return
+     */
+    @RequestMapping("/pushSeckillCacheAction")
+    public String pushSkilCache(@RequestParam("seckillId") long seckillId) {
+        //将秒杀库存写入缓存中
+        seckillActivityService.pushSeckillActivityInfoToCache(seckillId);
+        return "push_seckill_cache";
     }
 
 }

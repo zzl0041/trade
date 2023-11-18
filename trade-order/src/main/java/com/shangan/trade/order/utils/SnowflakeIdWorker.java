@@ -1,5 +1,7 @@
 package com.shangan.trade.order.utils;
 
+import java.util.Date;
+
 /**
  * Twitter_Snowflake
  * SnowFlake的结构如下(每部分用-分开):
@@ -170,10 +172,16 @@ public class SnowflakeIdWorker {
      * 测试
      */
     public static void main(String[] args) {
+
+        Date startTime = new Date();
         SnowflakeIdWorker idWorker = new SnowflakeIdWorker(26, 12);
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 10; i++) {
             long id = idWorker.nextId();
             System.out.println(id);
         }
+        Date endTime = new Date();
+        System.out.println("startTime:"+startTime.getTime());
+        System.out.println("endTime:"+endTime.getTime());
+        System.out.println(endTime.getTime()-startTime.getTime());
     }
 }

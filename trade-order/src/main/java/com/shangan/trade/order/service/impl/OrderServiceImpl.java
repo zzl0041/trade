@@ -7,6 +7,7 @@ import com.shangan.trade.order.db.dao.OrderDao;
 import com.shangan.trade.order.db.model.Order;
 import com.shangan.trade.order.mq.OrderMessageSender;
 import com.shangan.trade.order.service.OrderService;
+import com.shangan.trade.order.service.RiskBlackListService;
 import com.shangan.trade.order.utils.SnowflakeIdWorker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,9 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private OrderMessageSender orderMessageSender;
 
+    @Autowired
+    private RiskBlackListService riskBlackListService;
+
     /**
      * datacenterId;  数据中心
      * machineId;     机器标识
@@ -48,6 +52,12 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Order createOrder(long userId, long goodsId) {
+        //判断用户是否在黑名单中
+        boolean inRiskBlackListMember = riskBlackListService.isInRiskBlackListMember(userId);
+        if (inRiskBlackListMember) {
+            log.error("user is in risk black list can not buy userId={}", userId);
+            throw new RuntimeException("用户在黑名单中");
+        }
         Order order = new Order();
         //普通商品购买默认无活动
         order.setId(snowFlake.nextId());

@@ -6,16 +6,17 @@ import com.shangan.trade.goods.service.GoodsService;
 import com.shangan.trade.goods.service.SearchService;
 import com.shangan.trade.lightning.deal.db.model.SeckillActivity;
 import com.shangan.trade.lightning.deal.service.SeckillActivityService;
+import com.shangan.trade.lightning.deal.utils.RedisWorker;
 import com.shangan.trade.order.db.model.Order;
 import com.shangan.trade.order.service.OrderService;
 import com.shangan.trade.web.portal.util.CommonUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
 import java.util.List;
@@ -37,6 +38,10 @@ public class PortalController {
 
     @Autowired
     private SeckillActivityService seckillActivityService;
+
+
+    @Autowired
+    private RedisWorker redisWorker;
 
     /**
      * 跳转到主页面
@@ -154,7 +159,17 @@ public class PortalController {
     @RequestMapping("/seckill/{seckillId}")
     public String seckillInfo(Map<String, Object> resultMap, @PathVariable long seckillId) {
         try {
-            SeckillActivity seckillActivity = seckillActivityService.querySeckillActivityById(seckillId);
+            // 查询活动信息
+            SeckillActivity seckillActivity;
+            String seckillActivityInfo = redisWorker.getValueByKey("seckillActivity:" + seckillId);
+            if (!StringUtils.isEmpty(seckillActivityInfo)) {
+                //从redis查询到数据
+                seckillActivity = JSON.parseObject(seckillActivityInfo, SeckillActivity.class);
+                log.info("命中秒杀活动缓存:{}", seckillActivityInfo);
+            } else {
+                seckillActivity = seckillActivityService.querySeckillActivityById(seckillId);
+            }
+
             if (seckillActivity == null) {
                 log.error("秒杀的对应的活动信息 没有查询到 seckillId:{} ", seckillId);
                 throw new RuntimeException("秒杀的对应的活动信息 没有查询到");
@@ -162,7 +177,17 @@ public class PortalController {
             log.info("seckillId={},seckillActivity={}", seckillId, JSON.toJSON(seckillActivity));
             String seckillPrice = CommonUtils.changeF2Y(seckillActivity.getSeckillPrice());
             String oldPrice = CommonUtils.changeF2Y(seckillActivity.getOldPrice());
-            Goods goods = goodsService.queryGoodsById(seckillActivity.getGoodsId());
+
+            // 查询商品信息
+            Goods goods;
+            String goodsInfo = redisWorker.getValueByKey("seckillActivity_goods:" + seckillActivity.getGoodsId());
+            if (!StringUtils.isEmpty(goodsInfo)) {
+                //从redis查询到数据
+                goods = JSON.parseObject(goodsInfo, Goods.class);
+                log.info("命中商品缓存:{}", goodsInfo);
+            } else {
+                goods = goodsService.queryGoodsById(seckillActivity.getGoodsId());
+            }
             if (goods == null) {
                 log.error("秒杀的对应的商品信息 没有查询到 seckillId:{} goodsId:{}", seckillId, seckillActivity.getGoodsId());
                 throw new RuntimeException("秒杀的对应的商品信息 没有查询到");
@@ -193,6 +218,18 @@ public class PortalController {
         return "seckill_activity_list";
     }
 
+
+//    @ResponseBody
+//    @RequestMapping("/seckill/buy/{seckillId}")
+//    public String seckillInfoBase(@PathVariable long seckillId) {
+//       // boolean res = seckillActivityService.processSeckillReqBase(seckillId);
+//        boolean res = seckillActivityService.processSeckill(seckillId);
+//        if (res) {
+//            return "商品抢购成功";
+//        } else {
+//            return "商品抢购失败，商品已经售完";
+//        }
+//    }
 
     @RequestMapping("/seckill/buy/{userId}/{seckillId}")
     public ModelAndView seckill(@PathVariable long userId, @PathVariable long seckillId) {
